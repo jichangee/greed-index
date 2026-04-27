@@ -29,7 +29,7 @@ export async function GET() {
     const earningsYield = (1 / pe) * 100
     const price = qqqQuote.c
     const vix = vixQuote.c
-    const latestRsi = rsiData.rsi[rsiData.rsi.length - 1]
+    const latestRsi = rsiData.rsi?.[rsiData.rsi.length - 1]
     const rsi = latestRsi ?? 50 // fallback to neutral if RSI unavailable
 
     const indicatorData: IndicatorData = {
