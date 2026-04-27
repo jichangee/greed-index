@@ -1,4 +1,4 @@
-import type { IndicatorData, ScoreResult } from '@/types/indicator'
+import type { IndicatorData, Signal } from '@/types/indicator'
 
 export function normalize(
   value: number,
@@ -10,39 +10,31 @@ export function normalize(
   return inverse ? 1 - normalized : normalized
 }
 
-export function getSignal(
-  totalScore: number
-): 'BUY' | 'HOLD' | 'SELL' | 'DANGER' {
+export function getSignal(totalScore: number): Signal {
   if (totalScore < 0.35) return 'BUY'
   if (totalScore < 0.55) return 'HOLD'
   if (totalScore < 0.75) return 'SELL'
   return 'DANGER'
 }
 
-export function calculateScore(data: IndicatorData): ScoreResult {
+export function calculateScore(data: IndicatorData): { totalScore: number; signal: Signal } {
   const valuationScore =
-    normalize(data.pe, [10, 35]) * 0.4 +
-    normalize(data.ps, [2, 10]) * 0.3 +
-    normalize(data.bondYield - data.earningsYield, [-3, 2]) * 0.3
+    normalize(data.pe, [10, 35]) * 0.55 +
+    normalize(data.bondYield - data.earningsYield, [-3, 2]) * 0.45
 
   const macroScore =
     normalize(data.bondYield, [1, 5]) * 0.6 +
     normalize(data.vix, [10, 40], true) * 0.4
 
   const sentimentScore =
-    normalize(data.rsi, [30, 80]) * 0.6 +
-    normalize(data.vix, [10, 40], true) * 0.4
+    normalize(data.rsi, [30, 80]) * 0.35 +
+    normalize(data.stochastic, [20, 80]) * 0.35 +
+    normalize(data.weekPosition52, [0.2, 0.95]) * 0.3
 
   const totalScore =
     valuationScore * 0.45 +
-    macroScore * 0.35 +
-    sentimentScore * 0.2
+    macroScore * 0.30 +
+    sentimentScore * 0.25
 
-  return {
-    valuationScore,
-    macroScore,
-    sentimentScore,
-    totalScore,
-    signal: getSignal(totalScore),
-  }
+  return { totalScore, signal: getSignal(totalScore) }
 }

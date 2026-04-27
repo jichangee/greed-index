@@ -1,11 +1,8 @@
 import { calculateScore } from '@/lib/scoring'
-import { getQuote, getRsi } from '@/lib/finnhub'
+import { getQuote } from '@/lib/finnhub'
+import { getRsi, getNdxPe, getStochastic, get52WeekPosition } from '@/lib/twelvedata'
+import { getTenYearYield, getVix } from '@/lib/fred'
 import type { IndicatorData, MarketResponse } from '@/types/indicator'
-
-// Fixed mock values — Finnhub free tier does not provide NASDAQ100 aggregate PE/PS
-const MOCK_PE = 28
-const MOCK_PS = 6
-const MOCK_BOND_YIELD = 4.2
 
 const CACHE_TTL_MS = 5 * 60 * 1000
 
@@ -17,36 +14,37 @@ export async function GET() {
   }
 
   try {
-    const [qqqQuote, vixQuote, rsiData] = await Promise.all([
+    const [qqqQuote, rsi, stochastic, weekPosition52, bondYield, vix, pe] = await Promise.all([
       getQuote('QQQ'),
-      getQuote('^VIX').catch(() => ({ c: 20 })), // fallback: VIX may be unavailable on free tier
       getRsi('QQQ'),
+      getStochastic('QQQ'),
+      get52WeekPosition('QQQ'),
+      getTenYearYield(),
+      getVix(),
+      getNdxPe(),
     ])
 
-    const pe = MOCK_PE
-    const ps = MOCK_PS
-    const bondYield = MOCK_BOND_YIELD
-    const earningsYield = (1 / pe) * 100
-    const price = qqqQuote.c
-    const vix = vixQuote.c
-    const latestRsi = rsiData.rsi?.[rsiData.rsi.length - 1]
-    const rsi = latestRsi ?? 50 // fallback to neutral if RSI unavailable
+    const raw = { pe, bondYield, vix, rsi, stochastic, weekPosition52, price: qqqQuote.c }
+    for (const [key, val] of Object.entries(raw)) {
+      if (!Number.isFinite(val)) throw new Error(`Non-finite value for ${key}: ${val}`)
+    }
 
     const indicatorData: IndicatorData = {
       pe,
-      ps,
-      earningsYield,
+      earningsYield: (1 / pe) * 100,
       bondYield,
       vix,
       rsi,
-      price,
+      stochastic,
+      weekPosition52,
+      price: qqqQuote.c,
     }
 
-    const scores = calculateScore(indicatorData)
+    const { totalScore, signal } = calculateScore(indicatorData)
 
     const response: MarketResponse = {
-      ...indicatorData,
-      ...scores,
+      totalScore,
+      signal,
       cachedAt: new Date().toISOString(),
     }
 
