@@ -1,36 +1,83 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+## Greed Index（S&P 500 贪婪/恐惧指数）
 
-## Getting Started
+一个用 **Next.js App Router** 写的轻量级页面：聚合多数据源指标，计算综合分数（0~1，UI 显示为 0~100），给出 `BUY/HOLD/SELL/DANGER` 信号，并支持近 52 周的**周频回测曲线**。
 
-First, run the development server:
+### 功能
+
+- **实时/最新**：首页加载时请求 `GET /api/market`，返回当前综合分与信号。
+- **历史重放（按日期）**：`GET /api/market?date=YYYY-MM-DD`，以该日期对齐到最近一个交易日后计算指标与信号（返回输入与对齐日期）。
+- **回测（周频）**：`GET /api/backtest?start=YYYY-MM-DD&end=YYYY-MM-DD`，返回区间内每个 ISO 周最后一个交易日的点位（用于绘制分数与价格曲线）。
+
+### 环境变量
+
+复制示例文件并填写 Key：
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp example.env .env
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+当前用到的变量（见 `example.env`）：
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- `FINNHUB_API_KEY`
+- `FRED_API_KEY`
+- `FMP_API_KEY`
+- `TWELVE_DATA_API_KEY`
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 快速开始（pnpm）
 
-## Learn More
+安装依赖并启动开发服务器：
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+pnpm install
+pnpm dev
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+打开 `http://localhost:3000`。
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 常用命令
 
-## Deploy on Vercel
+```bash
+pnpm dev
+pnpm build
+pnpm start
+pnpm lint
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### API 说明
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+#### `GET /api/market`
+
+- **用途**：获取“最新”的综合分与信号（带 5 分钟缓存）。
+- **响应（稳定字段）**：
+  - `totalScore`: number（0~1）
+  - `signal`: `'BUY' | 'HOLD' | 'SELL' | 'DANGER'`
+  - `cachedAt`: string（ISO 时间）
+
+#### `GET /api/market?date=YYYY-MM-DD`
+
+- **用途**：按指定日期回放（会自动对齐到 `asOfDate <= date` 的交易日）。
+- **额外返回**：
+  - `asOfDate`: string（实际用于计算的交易日，ISO 日期）
+  - `inputs`: 指标原始输入（见 `types/indicator.ts` 的 `IndicatorData`）
+  - `meta.peSource`: `'multpl' | 'twelvedata_latest_fallback'`
+
+#### `GET /api/backtest?start=YYYY-MM-DD&end=YYYY-MM-DD`
+
+- **用途**：计算回测序列（目前固定周频）。
+- **响应**：
+  - `start`, `end`: string（ISO 日期）
+  - `frequency`: `'week'`
+  - `points`: `{ date, totalScore, signal, price }[]`
+  - `cachedAt`: string（ISO 时间）
+
+### 目录速览
+
+- `app/page.tsx`：首页 UI（展示分数、信号、回测开关）
+- `app/api/market/route.ts`：最新/历史重放 API
+- `app/api/backtest/route.ts`：回测 API
+- `components/BacktestChart.tsx`：回测图（分数曲线 + 价格曲线）
+- `lib/*`：数据源与指标计算（FRED / TwelveData / Finnhub / Multpl 等）
+
+### 免责声明
+
+本项目仅用于学习与研究，不构成任何投资建议。数据源可能存在延迟/缺失/修订，请自行甄别与承担风险。
