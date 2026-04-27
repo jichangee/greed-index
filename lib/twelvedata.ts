@@ -26,6 +26,20 @@ interface QuoteResponse {
   }
 }
 
+export interface DailyBar {
+  datetime: string // YYYY-MM-DD
+  open: number
+  high: number
+  low: number
+  close: number
+}
+
+interface TimeSeriesResponse {
+  status: string
+  values?: { datetime: string; open: string; high: string; low: string; close: string }[]
+  message?: string
+}
+
 async function tdGet<T>(path: string): Promise<T> {
   const apiKey = process.env.TWELVE_DATA_API_KEY
   if (!apiKey) throw new Error('TWELVE_DATA_API_KEY is not configured')
@@ -71,9 +85,50 @@ export async function get52WeekPosition(symbol: string): Promise<number> {
 }
 
 /** Returns the trailing PE ratio for QQQ (NASDAQ-100 proxy) */
-export async function getNdxPe(): Promise<number> {
-  const data = await tdGet<StatisticsResponse>('/statistics?symbol=QQQ')
+export async function getTrailingPe(symbol: string): Promise<number> {
+  const data = await tdGet<StatisticsResponse>(`/statistics?symbol=${encodeURIComponent(symbol)}`)
   const pe = data.statistics?.valuations_metrics?.trailing_pe
-  if (pe === null || pe === undefined) throw new Error('Twelve Data: trailing_pe not available for QQQ')
+  if (pe === null || pe === undefined) throw new Error(`Twelve Data: trailing_pe not available for ${symbol}`)
   return pe
+}
+
+// Backward-compatible alias (old name used by earlier code)
+export async function getNdxPe(): Promise<number> {
+  return getTrailingPe('QQQ')
+}
+
+/**
+ * Returns daily OHLC bars (most recent first) up to end_date (inclusive).
+ * Note: Twelve Data may omit non-trading days; callers should forward-align (<= date).
+ */
+export async function getDailyBars(symbol: string, endDateIso: string, outputsize: number): Promise<DailyBar[]> {
+  const data = await tdGet<TimeSeriesResponse>(
+    `/time_series?symbol=${encodeURIComponent(symbol)}` +
+      `&interval=1day&end_date=${encodeURIComponent(endDateIso)}` +
+      `&outputsize=${encodeURIComponent(String(outputsize))}`
+  )
+  if (data.status !== 'ok' || !data.values?.length) {
+    throw new Error(`Twelve Data: time_series not available for ${symbol}${data.message ? ` (${data.message})` : ''}`)
+  }
+
+  const bars: DailyBar[] = data.values.map((v) => ({
+    datetime: v.datetime,
+    open: parseFloat(v.open),
+    high: parseFloat(v.high),
+    low: parseFloat(v.low),
+    close: parseFloat(v.close),
+  }))
+
+  for (const b of bars) {
+    if (
+      !b.datetime ||
+      !Number.isFinite(b.open) ||
+      !Number.isFinite(b.high) ||
+      !Number.isFinite(b.low) ||
+      !Number.isFinite(b.close)
+    ) {
+      throw new Error(`Twelve Data: invalid daily bar for ${symbol}: ${JSON.stringify(b)}`)
+    }
+  }
+  return bars
 }
