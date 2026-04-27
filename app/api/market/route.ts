@@ -112,7 +112,7 @@ export async function GET(request: Request) {
     ])
 
     const pe = await getSp500PeAt(asOfDate)
-    const peSource: 'multpl' = 'multpl'
+    const peSource = 'multpl' as const
 
     const raw = { pe, bondYield, vix, rsi, stochastic, weekPosition52, price }
     for (const [key, val] of Object.entries(raw)) {
