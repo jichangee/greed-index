@@ -10,15 +10,21 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetch('/api/market')
+    const controller = new AbortController()
+
+    fetch('/api/market', { signal: controller.signal })
       .then((res) => res.json())
       .then((json: MarketResponse & { error?: string }) => {
         if (json.error) throw new Error(json.error)
         setData(json)
       })
       .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : 'Unknown error')
+        if (err instanceof Error && err.name !== 'AbortError') {
+          setError(err.message)
+        }
       })
+
+    return () => controller.abort()
   }, [])
 
   if (error) {
