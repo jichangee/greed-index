@@ -1,12 +1,11 @@
 ## Greed Index（S&P 500 贪婪/恐惧指数）
 
-一个用 **Next.js App Router** 写的轻量级页面：聚合多数据源指标，计算综合分数（0~1，UI 显示为 0~100），给出 `BUY/HOLD/SELL/DANGER` 信号，并支持近 52 周的**周频回测曲线**。
+一个用 **Next.js App Router** 写的轻量级数据看板：聚合 Multpl/FRED 指标，计算综合风险分数（0~1，UI 显示为 0~100），给出低/中/高风险提示。
 
 ### 功能
 
-- **实时/最新**：首页加载时请求 `GET /api/market`，返回当前综合分与信号。
+- **实时/最新**：首页加载时请求 `GET /api/market`，返回估值、利率、VIX 与综合风险提示。
 - **历史重放（按日期）**：`GET /api/market?date=YYYY-MM-DD`，以该日期对齐到最近一个交易日后计算指标与信号（返回输入与对齐日期）。
-- **回测（周频）**：`GET /api/backtest?start=YYYY-MM-DD&end=YYYY-MM-DD`，返回区间内每个 ISO 周最后一个交易日的点位（用于绘制分数与价格曲线）。
 
 ### 环境变量
 
@@ -20,7 +19,6 @@ cp example.env .env
 
 - `FINNHUB_API_KEY`
 - `FRED_API_KEY`
-- `FMP_API_KEY`
 - `TWELVE_DATA_API_KEY`
 
 ### 快速开始（pnpm）
@@ -50,8 +48,10 @@ pnpm lint
 - **用途**：获取“最新”的综合分与信号（带 5 分钟缓存）。
 - **响应（稳定字段）**：
   - `totalScore`: number（0~1）
-  - `signal`: `'BUY' | 'HOLD' | 'SELL' | 'DANGER'`
+  - `signal`: `'LOW' | 'MEDIUM' | 'HIGH'`
   - `cachedAt`: string（ISO 时间）
+  - `asOfDate`: string
+  - `inputs`: 指标原始输入
 
 #### `GET /api/market?date=YYYY-MM-DD`
 
@@ -61,21 +61,10 @@ pnpm lint
   - `inputs`: 指标原始输入（见 `types/indicator.ts` 的 `IndicatorData`）
   - `meta.peSource`: `'multpl' | 'twelvedata_latest_fallback'`
 
-#### `GET /api/backtest?start=YYYY-MM-DD&end=YYYY-MM-DD`
-
-- **用途**：计算回测序列（目前固定周频）。
-- **响应**：
-  - `start`, `end`: string（ISO 日期）
-  - `frequency`: `'week'`
-  - `points`: `{ date, totalScore, signal, price }[]`
-  - `cachedAt`: string（ISO 时间）
-
 ### 目录速览
 
-- `app/page.tsx`：首页 UI（展示分数、信号、回测开关）
+- `app/page.tsx`：首页 UI（展示估值/利率/波动率卡片、综合风险评分）
 - `app/api/market/route.ts`：最新/历史重放 API
-- `app/api/backtest/route.ts`：回测 API
-- `components/BacktestChart.tsx`：回测图（分数曲线 + 价格曲线）
 - `lib/*`：数据源与指标计算（FRED / TwelveData / Finnhub / Multpl 等）
 
 ### 免责声明

@@ -1,9 +1,14 @@
 import { calculateScore } from '@/lib/scoring'
-import { getQuote } from '@/lib/finnhub'
 import { getDailyBars } from '@/lib/twelvedata'
 import { getTenYearYield, getTenYearYieldAt, getVix, getVixAt } from '@/lib/fred'
 import { alignBarsAsOf, computeRsi, computeStochK, computeWindowPosition } from '@/lib/indicators'
-import { getSp500PeAt } from '@/lib/multpl'
+import {
+  getShillerPeAt,
+  getSp500DividendYieldAt,
+  getSp500EarningsYieldAt,
+  getSp500PeAt,
+  getTenYearTreasuryRateAt,
+} from '@/lib/multpl'
 import type { IndicatorData, MarketResponse } from '@/types/indicator'
 
 const CACHE_TTL_MS = 5 * 60 * 1000
@@ -39,45 +44,31 @@ export async function GET(request: Request) {
 
   try {
     if (!dateIso) {
-      const [spyQuote, bondYield, vix] = await Promise.all([
-        getQuote(SYMBOL),
-        getTenYearYield(),
-        getVix(),
+      const todayIso = new Date().toISOString().slice(0, 10)
+      const [cape, pe, earningsYield, dividendYield, multplBondYield, fredBondYield, vix] = await Promise.all([
+        getShillerPeAt(todayIso),
+        getSp500PeAt(todayIso),
+        getSp500EarningsYieldAt(todayIso),
+        getSp500DividendYieldAt(todayIso),
+        getTenYearTreasuryRateAt(todayIso),
+        getTenYearYield().catch(() => null),
+        getVix().catch(() => null),
       ])
 
-      // For latest, compute indicators consistently with backtest, aligned to today's date.
-      const todayIso = new Date().toISOString().slice(0, 10)
-      const bars = await getDailyBars(SYMBOL, todayIso, 320)
-      const { asOfDate, barsAsOfDesc } = alignBarsAsOf(bars, todayIso)
-      const barsAsOfAsc = [...barsAsOfDesc].reverse()
-
-      const closesAsc = barsAsOfAsc.map((b) => b.close)
-      const highsAsc = barsAsOfAsc.map((b) => b.high)
-      const lowsAsc = barsAsOfAsc.map((b) => b.low)
-
-      const price = spyQuote.c
-      const rsi = computeRsi(closesAsc, 14)
-      const stochastic = computeStochK(highsAsc, lowsAsc, closesAsc, 14)
-      const { position: weekPosition52 } = computeWindowPosition(barsAsOfAsc, 252)
-
-      // PE: use Multpl S&P500 PE (<= asOfDate) for both latest & replay.
-      const pe = await getSp500PeAt(asOfDate)
-
-      // Keep existing API minimal for "latest" view.
-      const raw = { pe, bondYield, vix, price }
-      for (const [key, val] of Object.entries(raw)) {
-        if (!Number.isFinite(val)) throw new Error(`Non-finite value for ${key}: ${val}`)
-      }
+      const bondYield = fredBondYield ?? multplBondYield
 
       const indicatorData: IndicatorData = {
+        cape,
         pe,
-        earningsYield: (1 / pe) * 100,
+        earningsYield,
+        dividendYield,
         bondYield,
         vix,
-        rsi,
-        stochastic,
-        weekPosition52,
-        price,
+        vxSpread: null,
+        rsi: null,
+        stochastic: null,
+        weekPosition52: null,
+        price: null,
       }
 
       const { totalScore, signal } = calculateScore(indicatorData)
@@ -86,6 +77,8 @@ export async function GET(request: Request) {
         totalScore,
         signal,
         cachedAt: new Date().toISOString(),
+        asOfDate: todayIso,
+        inputs: indicatorData,
       }
 
       cache = { data: response, expiresAt: Date.now() + CACHE_TTL_MS }
@@ -111,19 +104,27 @@ export async function GET(request: Request) {
       getVixAt(asOfDate),
     ])
 
-    const pe = await getSp500PeAt(asOfDate)
+    const [cape, pe, earningsYield, dividendYield] = await Promise.all([
+      getShillerPeAt(asOfDate),
+      getSp500PeAt(asOfDate),
+      getSp500EarningsYieldAt(asOfDate),
+      getSp500DividendYieldAt(asOfDate),
+    ])
     const peSource = 'multpl' as const
 
-    const raw = { pe, bondYield, vix, rsi, stochastic, weekPosition52, price }
+    const raw = { cape, pe, earningsYield, dividendYield, bondYield, vix, rsi, stochastic, weekPosition52, price }
     for (const [key, val] of Object.entries(raw)) {
       if (!Number.isFinite(val)) throw new Error(`Non-finite value for ${key}: ${val}`)
     }
 
     const indicatorData: IndicatorData = {
+      cape,
       pe,
-      earningsYield: (1 / pe) * 100,
+      earningsYield,
+      dividendYield,
       bondYield,
       vix,
+      vxSpread: null,
       rsi,
       stochastic,
       weekPosition52,
@@ -133,8 +134,6 @@ export async function GET(request: Request) {
     const { totalScore, signal } = calculateScore(indicatorData)
 
     const response: MarketResponse & {
-      asOfDate: string
-      inputs: IndicatorData
       meta: { peSource: 'multpl' | 'twelvedata_latest_fallback' }
     } = {
       totalScore,

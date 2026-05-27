@@ -1,6 +1,10 @@
 type PePoint = { date: string; value: number }
 
 const DEFAULT_URL = 'https://www.multpl.com/s-p-500-pe-ratio/table/by-month'
+const SHILLER_PE_URL = 'https://www.multpl.com/shiller-pe/table/by-month'
+const EARNINGS_YIELD_URL = 'https://www.multpl.com/s-p-500-earnings-yield/table/by-month'
+const DIVIDEND_YIELD_URL = 'https://www.multpl.com/s-p-500-dividend-yield/table/by-month'
+const TEN_YEAR_RATE_URL = 'https://www.multpl.com/10-year-treasury-rate/table/by-month'
 
 const CACHE_TTL_MS = 12 * 60 * 60 * 1000
 let cache: { points: PePoint[]; fetchedAt: number; url: string } | null = null
@@ -218,3 +222,28 @@ export async function getSp500PeAt(dateIso: string): Promise<number> {
   return getNdxPeAt(dateIso)
 }
 
+async function getMultplValueAt(dateIso: string, url: string): Promise<number> {
+  const date = parseIsoDateOnly(dateIso)
+  const points = await getCachedPoints(url)
+
+  for (let i = points.length - 1; i >= 0; i--) {
+    if (points[i].date <= date) return points[i].value
+  }
+  throw new Error(`No Multpl observation found at or before ${dateIso}`)
+}
+
+export async function getShillerPeAt(dateIso: string): Promise<number> {
+  return getMultplValueAt(dateIso, process.env.MULTPL_SHILLER_PE_URL || SHILLER_PE_URL)
+}
+
+export async function getSp500EarningsYieldAt(dateIso: string): Promise<number> {
+  return getMultplValueAt(dateIso, process.env.MULTPL_SP500_EARNINGS_YIELD_URL || EARNINGS_YIELD_URL)
+}
+
+export async function getSp500DividendYieldAt(dateIso: string): Promise<number> {
+  return getMultplValueAt(dateIso, process.env.MULTPL_SP500_DIVIDEND_YIELD_URL || DIVIDEND_YIELD_URL)
+}
+
+export async function getTenYearTreasuryRateAt(dateIso: string): Promise<number> {
+  return getMultplValueAt(dateIso, process.env.MULTPL_TEN_YEAR_RATE_URL || TEN_YEAR_RATE_URL)
+}

@@ -1,15 +1,18 @@
 export interface IndicatorData {
-  pe: number
-  earningsYield: number
-  bondYield: number
-  vix: number
-  rsi: number
-  stochastic: number
-  weekPosition52: number
-  price: number
+  cape: number | null
+  pe: number | null
+  earningsYield: number | null
+  dividendYield?: number | null
+  bondYield: number | null
+  vix: number | null
+  vxSpread: number | null
+  rsi: number | null
+  stochastic: number | null
+  weekPosition52: number | null
+  price: number | null
 }
 
-export type Signal = 'BUY' | 'HOLD' | 'SELL' | 'DANGER'
+export type Signal = 'LOW' | 'MEDIUM' | 'HIGH'
 
 // Convenience type used by UI components.
 export interface ScoreResult {
@@ -21,6 +24,8 @@ export interface MarketResponse {
   totalScore: number
   signal: Signal
   cachedAt: string
+  asOfDate: string
+  inputs: IndicatorData
 }
 
 export interface MarketResponseWithInputs extends MarketResponse {

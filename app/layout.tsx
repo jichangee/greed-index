@@ -14,15 +14,15 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: 'Greed Index',
-    template: '%s · Greed Index',
+    default: '美股风险仪表板',
+    template: '%s · 美股风险仪表板',
   },
-  description: 'S&P 500 Greed & Fear Index',
-  applicationName: 'Greed Index',
+  description: 'S&P 500 valuation, rates, and volatility risk dashboard',
+  applicationName: '美股风险仪表板',
   manifest: '/manifest.webmanifest',
   appleWebApp: {
     capable: true,
-    title: 'Greed Index',
+    title: '美股风险仪表板',
     statusBarStyle: 'black-translucent',
   },
 }
@@ -34,7 +34,7 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
+      lang="zh-CN"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>

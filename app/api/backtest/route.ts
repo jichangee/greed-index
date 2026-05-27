@@ -2,7 +2,7 @@ import { calculateScore } from '@/lib/scoring'
 import { getDailyBars } from '@/lib/twelvedata'
 import { getSeriesObservations } from '@/lib/fred'
 import { alignBarsAsOf, computeRsi, computeStochK, computeWindowPosition } from '@/lib/indicators'
-import { getSp500PeAt } from '@/lib/multpl'
+import { getShillerPeAt, getSp500EarningsYieldAt, getSp500PeAt } from '@/lib/multpl'
 import type { BacktestPoint, BacktestResponse, IndicatorData } from '@/types/indicator'
 
 const SYMBOL = 'SPY'
@@ -102,21 +102,28 @@ export async function GET(request: Request) {
 
       const bondYield = valueAtOrBefore(dgs10Asc, dateIso)
       const vix = valueAtOrBefore(vixAsc, dateIso)
-      const pe = await getSp500PeAt(dateIso)
+      const [cape, pe, earningsYield] = await Promise.all([
+        getShillerPeAt(dateIso),
+        getSp500PeAt(dateIso),
+        getSp500EarningsYieldAt(dateIso),
+      ])
+      const price = slice[slice.length - 1].close
 
       const indicatorData: IndicatorData = {
+        cape,
         pe,
-        earningsYield: (1 / pe) * 100,
+        earningsYield,
         bondYield,
         vix,
+        vxSpread: null,
         rsi,
         stochastic,
         weekPosition52,
-        price: slice[slice.length - 1].close,
+        price,
       }
 
       const { totalScore, signal } = calculateScore(indicatorData)
-      points.push({ date: dateIso, totalScore, signal, price: indicatorData.price })
+      points.push({ date: dateIso, totalScore, signal, price })
     }
 
     const response: BacktestResponse = {
@@ -135,4 +142,3 @@ export async function GET(request: Request) {
     )
   }
 }
-

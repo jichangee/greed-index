@@ -1,10 +1,9 @@
 import type { ScoreResult } from '@/types/indicator'
 
 const SIGNAL_COLORS: Record<ScoreResult['signal'], string> = {
-  BUY: '#22c55e',
-  HOLD: '#3b82f6',
-  SELL: '#f97316',
-  DANGER: '#ef4444',
+  LOW: '#111827',
+  MEDIUM: '#b45309',
+  HIGH: '#dc2626',
 }
 
 interface ScoreGaugeProps {

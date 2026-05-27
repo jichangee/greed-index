@@ -1,10 +1,9 @@
 import type { ScoreResult } from '@/types/indicator'
 
 const SIGNAL_STYLES: Record<ScoreResult['signal'], string> = {
-  BUY: 'bg-green-500 text-white',
-  HOLD: 'bg-blue-500 text-white',
-  SELL: 'bg-orange-500 text-white',
-  DANGER: 'bg-red-500 text-white',
+  LOW: 'bg-neutral-900 text-white',
+  MEDIUM: 'bg-amber-600 text-white',
+  HIGH: 'bg-red-600 text-white',
 }
 
 interface SignalBadgeProps {
