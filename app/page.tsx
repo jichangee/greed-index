@@ -56,6 +56,10 @@ export default function Home() {
 
   const scorePercent = data ? Math.round(data.totalScore * 100) : null
   const signal = data?.signal ?? 'MEDIUM'
+  const rateDividendSpread =
+    data && data.inputs.bondYield !== null && data.inputs.dividendYield !== null
+      ? data.inputs.bondYield - data.inputs.dividendYield
+      : null
   const barTone =
     signal === 'LOW'
       ? 'bg-neutral-900'
@@ -83,6 +87,11 @@ export default function Home() {
       label: '股息收益率',
       value: formatValue(data?.inputs.dividendYield ?? null, '%', 2),
       hint: 'S&P 500',
+    },
+    {
+      label: '利率-股息利差',
+      value: formatValue(rateDividendSpread, '%', 2),
+      hint: '>3% 债更有吸引力',
     },
     {
       label: 'VIX',
@@ -124,7 +133,7 @@ export default function Home() {
           </div>
         ) : null}
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-6">
           {metricCards.map((card) => (
             <article key={card.label} className="rounded-lg bg-[#f4f2ed] px-3 py-4 sm:min-h-[84px]">
               <div className="text-xs font-medium text-neutral-700">{card.label}</div>

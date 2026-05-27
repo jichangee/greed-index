@@ -2,7 +2,7 @@ import { calculateScore } from '@/lib/scoring'
 import { getDailyBars } from '@/lib/twelvedata'
 import { getSeriesObservations } from '@/lib/fred'
 import { alignBarsAsOf, computeRsi, computeStochK, computeWindowPosition } from '@/lib/indicators'
-import { getShillerPeAt, getSp500EarningsYieldAt, getSp500PeAt } from '@/lib/multpl'
+import { getShillerPeAt, getSp500DividendYieldAt, getSp500EarningsYieldAt, getSp500PeAt } from '@/lib/multpl'
 import type { BacktestPoint, BacktestResponse, IndicatorData } from '@/types/indicator'
 
 const SYMBOL = 'SPY'
@@ -102,10 +102,11 @@ export async function GET(request: Request) {
 
       const bondYield = valueAtOrBefore(dgs10Asc, dateIso)
       const vix = valueAtOrBefore(vixAsc, dateIso)
-      const [cape, pe, earningsYield] = await Promise.all([
+      const [cape, pe, earningsYield, dividendYield] = await Promise.all([
         getShillerPeAt(dateIso),
         getSp500PeAt(dateIso),
         getSp500EarningsYieldAt(dateIso),
+        getSp500DividendYieldAt(dateIso),
       ])
       const price = slice[slice.length - 1].close
 
@@ -113,9 +114,9 @@ export async function GET(request: Request) {
         cape,
         pe,
         earningsYield,
+        dividendYield,
         bondYield,
         vix,
-        vxSpread: null,
         rsi,
         stochastic,
         weekPosition52,

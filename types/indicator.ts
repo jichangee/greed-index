@@ -2,10 +2,9 @@ export interface IndicatorData {
   cape: number | null
   pe: number | null
   earningsYield: number | null
-  dividendYield?: number | null
+  dividendYield: number | null
   bondYield: number | null
   vix: number | null
-  vxSpread: number | null
   rsi: number | null
   stochastic: number | null
   weekPosition52: number | null
